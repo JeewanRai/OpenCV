@@ -162,7 +162,8 @@ show_pic(blended)
 
 ## Blurring and smoothing image
 Blurring and smothing images helpstoget ridof noise, or helpapplication focuse on general details; bluring and smoothing is combined with edge detection, where edge detection algorithms detect too many edges when shown a high resolution image without any blurring.            
-In the given image we try to detect edges of the dog face, without bluring there we found too many details/noise like the image in the middle.  Just to detect the general edges of the image we can just blur the image and apply edge detection algorithm.                                
+In the given image we try to detect edges of the dog face, without bluring there we found too many details/noise like the image in the middle.  Just to detect the general edges of the image we can just blur the image and apply edge detection algorithm.                            
+The purpose of blurring is to reduce the amount of noise and detail in an image, which can help with tasks such as thresholding and edge detection. Blurring also smooths out the image and makes it more visually appealing.                         
 One method we can use is gamma correction, applied to an image to make it appear brighter or darker depending on the gamma value choosen.                               
 Kernel based filter
 ![alt text](image-13.png)
@@ -238,4 +239,292 @@ Removes unwanted  noise, keep edges very sharp but its slower compared to other 
 ```Python
 blur = cv2.bilateralFilter(img, 9, 75, 75)
 display_img(blur)
+```
+
+## Morphological Operators                  
+Sets of kernels that can achieve variety of effects, like reducing noise. A morphological operator is a type of image processing operation that changes the shape and size of objects in an image.  It uses a small shape called a structuring element to compare each pixel in the image with its neighbors. Depending on the rule applied, the pixel value in the output image can be the maximum, minimum, or average of the neighborhood pixels. Some common morphological operators are dilation, erosion, opening, and closing. They can be used to remove noise, fill gaps, smooth 
+
+```Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def load_img():
+    blank_img = cv2.imread('card-2.jpg').astype(np.float32)/255
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(blank_img, text = 'ABCD', org=(50,200), fontFace=font, fontScale = 5, color=(255, 255,255))
+    return blank_img
+
+    def display_img(img):
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111)
+    ax.imshow(img, cmap = 'gray')
+
+img = load_img()
+display_img(img)
+```
+Morphological operators are some kind of kernel
+```Python
+kernel = np.ones((5, 5), dtype =np.uint8)
+kernel
+
+result = cv2.erode(img, kernel, iterations=1)
+display_img(result)
+```
+While iterating more and more we find the image is distorted more and more. In erode function if the image is encountering with 255 it will keep as it is and if pixel of image is below 255 its converted to 0 so image will get changed.
+
+Opening is erosion followed by dilation, where dilation is opposite of erosion.
+```Python
+img = load_img()
+white_noise = np.random.randint(low = 0, high = 2, size =(600, 600))
+white_noise   
+
+display_img(white_noise)
+```
+![alt text](image-16.png)
+
+Max value of original image is 255. So need to convert white_noise to 255. Mixing noise image with original image.
+```Python
+img.max()
+
+white_noise = white_noise * 255
+display_img(white_noise)
+
+noise_img = white_noise + img
+display_img(noise_img)
+```
+Able to improve noise in the text compared to original image, still there are limited amount of noise present. Opening is useful for removing background noise. 
+
+Subtract each pixel with -255, have only noise on the forground, or on the text area, not on the background. So we use closing to clean up the mess.
+```Python
+black_noise = np.random.randint(low = 0, high = 2, size = (600, 600))
+black_noise = black_noise * -255
+
+black_noise
+black_noise_img = img + black_noise
+
+closing = cv2.morphologyEx(black_noise_img, cv2.MORPH_CLOSE, kernel)
+```
+Morphological gradient takes difference between dilation and erosion. Erosion operation will remove extra portion from image, where as dilation adds extra portion on image and morphological gradient takes difference between the two.  
+```Python
+gradient = cv2.morphologyEx(img, cv2.MORPH_GRADIENT, kernel)
+display_img(gradient)
+```
+![alt text](image-17.png)
+
+## Gradient 
+Extension of Morphologocal transformation, helps in edge detection, object detection, object tracking and image classification.Applying x gradient we can see vertical lines and applying y gradient we can see horizontal lines.
+![alt text](image-18.png) 
+
+The operators uses two 3 x 3 kernels convolved with original image A to compute approximations of deravities one for horizontal changes and one for vertial changes. 
+![alt text](image-19.png)
+
+```Python 
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def display_img(img):
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111)
+    ax.imshow(img, cmap = 'gray')
+
+img = cv2.imread('sudoko.jpg', 0)
+display_img(img)
+```
+### Sobal X gradient
+```Python
+sobalx = cv2.Sobel(img, cv2.CV_64F, dx=1, dy =0, ksize=5)
+display_img(sobalx)
+```
+Output
+![alt text](image-20.png)
+
+### Sobal Y gradient
+```Python
+sobaly = cv2.Sobel(img, cv2.CV_64F, dx=0, dy =1, ksize=5)
+display_img(sobaly)
+```
+Output
+![alt text](image-21.png)
+
+### Lapcian image edge detection
+Can detect edge detection on both x and y direction simultaneously.
+![alt text](image-22.png)
+
+### Bledning both sobalx and sobaly 
+```Python
+blended = cv2.addWeighted(src1=sobalx, alpha=0.5, src2=sobaly, beta=0.5, gamma = 0)
+display_img(blended)
+```
+Output
+![alt text](image-23.png)
+
+Applying thresholding method for edge detection
+```Python
+ret, th1 = cv2.threshold(img, 100, 255, cv2.THRESH_BINARY)
+display_img(th1)
+```
+Output
+![alt text](image-24.png)
+
+Implementing gradient morphology. We can use other methods to eliminate noise form the image and clear up the image. 
+```Python
+kernel = np.ones((4, 4), np.uint8)
+gradient_1 =cv2.morphologyEx(blended, cv2.MORPH_GRADIENT, kernel)
+display_img(gradient_1)
+```
+Output
+![alt text](image-25.png)
+
+## Histogram
+Display frequency of values of pixel color channel presenent in an image between 0 - 255, ploting RGB histogram
+ ```Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+dark_horse = cv2.imread('horse.jpg') #Original BGR opencv 
+show_horse = cv2.cvtColor(dark_horse, cv2.COLOR_BGR2RGB) #Converted to RGB
+plt.imshow(show_horse)
+
+ranbow = cv2.imread('ranbow.jpg') #Original BGR opencv 
+show_ranbow = cv2.cvtColor(ranbow, cv2.COLOR_BGR2RGB) #Converted to RGB
+plt.imshow(show_ranbow)
+
+blue_bricks = cv2.imread('brick.jpg') #Original BGR opencv 
+show_bricks = cv2.cvtColor(blue_bricks, cv2.COLOR_BGR2RGB) #Converted to RGB
+plt.imshow(show_bricks)
+ ```
+Ploting hist gram of blue channel i.e. at index 0
+```Python
+hist_val = cv2.calcHist([blue_bricks], channels = [0], mask = None, histSize = [256], ranges = [0, 256])
+hist_val.shape
+
+plt.plot(hist_val)
+```
+Output
+![alt text](image-26.png)
+  ```Python
+hist_val = cv2.calcHist([dark_horse], channels = [0], mask = None, histSize = [256], ranges = [0, 256])
+
+plt.plot(hist_val)
+  ```
+  In this most of the blue color channeled value are closer to zero since most of the color is black. 
+   Output
+   ![alt text](image-27.png)
+
+   ## 3 color histogram
+```Python
+img = blue_bricks
+
+color = ('b', 'g', 'r')
+
+for i, col in enumerate(color):
+    hist_plot = cv2.calcHist([img], [i], None, [256], [0, 256])
+    plt.plot(hist_plot, color = col)
+    plt.xlim([0, 256])
+
+plt.title('Histogram for Blue Bricks')
+```
+Output
+![alt text](image-28.png)
+
+There are limited contribution from red color, more contributions are seen from blue and green color. 
+
+Similarely for dark horse.
+```Python
+img = dark_horse
+
+color = ('b', 'g', 'r')
+
+for i, col in enumerate(color):
+    hist_plot = cv2.calcHist([img], [i], None, [256], [0, 256])
+    plt.plot(hist_plot, color = col)
+    plt.xlim([0, 10])
+    plt.ylim([0, 10000])
+
+plt.title('Histogram for dark horse')
+```
+Output
+![alt text](image-30.png)
+
+### Histogram mask and histogram equilizer
+Can select particular region of interest and calculate color histogram of the masked section. Histogram Equalization is a method of contrast adjustment based on the image's histogram; increase or decrease contrast of image based on histogram. Making low contrast image with high contrast image, before it would be more irrigural but after applying histogram contrast we get the contrast more linear. ![alt text](image-32.png)
+
+```Python
+ranbow = cv2.imread('ranbow.jpg') #Original BGR opencv 
+show_ranbow = cv2.cvtColor(ranbow, cv2.COLOR_BGR2RGB) #Converted to RGB
+plt.imshow(show_ranbow)
+
+ranbow.shape
+
+creat_mask = np.zeros(show_ranbow.shape[0:2], np.uint8)
+plt.imshow(creat_mask, cmap='gray')
+
+creat_mask[100:150, 100:140] = 255
+
+plt.imshow(creat_mask, cmap='gray')
+```
+Output
+![alt text](image-33.png)
+
+```Python
+
+masked_img = cv2.bitwise_and(ranbow, ranbow, mask = creat_mask)
+show_masked_img =cv2.bitwise_and(show_ranbow, show_ranbow, mask = creat_mask)
+
+plt.imshow(show_masked_img)
+```
+Output
+![alt text](image-34.png)
+
+```Python
+hist_mask_vals = cv2.calcHist([ranbow], channels=[2], mask=creat_mask, histSize=[256], ranges=[0, 256])
+hist_vals = cv2.calcHist([ranbow], channels=[2], mask=None, histSize=[256], ranges=[0, 256])
+
+
+plt.plot(hist_mask_vals)
+plt.title('Red Histogram')
+
+plt.plot(hist_vals)
+plt.title('Red Histogram normal ranbow')
+```
+
+Output
+![alt text](image-35.png)
+
+![alt text](image-36.png)
+
+## Histogram Equilization
+```Python
+hist_values = cv2.calcHist([gorilla], channels=[0], mask=None, histSize=[256], ranges=[0, 256])
+plt.plot(hist_values)
+```
+Output
+![alt text](image-37.png)
+
+```Python
+gorilla = cv2.imread('gorilla.jpg', 0)
+
+def display_img(img, cmap =None):
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111)
+    ax.imshow(img, cmap = 'gray')
+
+eq_gorilla = cv2.equalizeHist(gorilla)
+display_img(eq_gorilla, cmap='gray')
+```
+Output
+![alt text](image-38.png)
+
+```Python
+ist_value =cv2.calcHist([eq_gorilla], channels=[0], mask=None, histSize=[256], ranges=[0, 256])
+
+hsv = cv2.cvtColor(gorilla, cv2.COLOR_BGR2HSV)
+
+hsv[:,:, 2]
+
+eq_col_gorl = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+display_img(eq_col_gorl)
 ```
