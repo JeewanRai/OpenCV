@@ -418,3 +418,300 @@ plt.imshow(dotgrid)
 this method is used for camera caliberation (grid detection method)
 Ouput:                                  
 ![alt text](image-90.png)
+
+
+### Contours Detection
+A curve joining all the continuous points having same color or intensity. Useful for shape analysis and object detection and recognization. 
+
+```Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+img = cv2.imread('download.png', 0)
+
+img.shape
+
+plt.imshow(img, cmap='gray')
+```
+Output:                                 
+```Python
+(101, 501)
+```
+![alt text](image-92.png)
+
+Random changes is called gradient
+Contour is boundry around something with well defined edges. Has well defined edges so machine is able to compute difference in gradient and form recognisable shape thorugh continuing changes and draw boundry.
+
+Contour is finding boundry of an image, traced along the edges, the change is pixel intensity between neighbouring pixel marks the boundy.
+
+![alt text](image-93.png)
+
+```Python
+img = cv2.imread('thumbs_up_down.jpg', 0)
+plt.imshow(img, cmap='gray')
+```
+Output                                  
+![alt text](image-94.png)
+
+Converting color image from RGB to RBG and to grayscale
+```Python
+# converting into RGB and then grayscale
+image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+# conveting to grayscale
+gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+```
+
+need to create a binary image, which means each pixel of the image is either black or white. This is a necessity in OpenCV, finding contours is like finding a white object from a black background, objects to be found should be white and the background should be black.
+```Python
+# create a binary thresholded image
+_, binary = cv2.threshold(gray, 225, 255, cv2.THRESH_BINARY_INV)
+# show it
+plt.imshow(binary, cmap="gray")
+plt.show()
+plt.show()
+```
+Ouput:                          
+![alt text](image-95.png)
+
+```Python
+contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+img1 = cv2.drawContours(image, contours, -1, (255, 0, 0), 5)
+
+# show the image with the drawn contours
+plt.imshow(image)
+plt.show()
+```
+Output:                                     
+![alt text](image-96.png)
+
+Examples of contour detection include foreground extraction, image segmentation, detection and recognization. In  contour detection we always use binary image 0 or 255. It cannot be use with grayscale image since in grayscale image we do not find clear edges unlike in binary image.
+
+![alt text](image-97.png)
+![alt text](image-98.png)
+
+```Python
+#read image, resize and convert to grayscale image
+image = cv2.imread('images.jpeg')
+
+image = cv2.resize(image, None, fx=0.9, fy=0.9)
+# converting image for pyplot matching
+plt_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+gray = cv2.cvtColor(plt_img, cv2.COLOR_RGB2GRAY)
+
+plt.imshow(gray, cmap='gray')
+```
+
+Output:                     
+![alt text](image-99.png)
+
+```Python
+# converting grayscale image to binary image
+ret, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+plt.imshow(binary)
+
+# now detect contoures
+contours, hierarchy = cv2.findContours(binary, mode =cv2.RETR_CCOMP, method=cv2.CHAIN_APPROX_SIMPLE)
+
+print("length of contours {}".format(len(contours)))
+print(contours)
+
+# draw contour ont he original image
+image_copy = image.copy()
+image_copy = cv2.drawContours(image_copy, contours, -1, (255, 0, 0 ), thickness=3, lineType=cv2.LINE_AA)
+
+
+# visualizing the results
+cv2.imshow('Grayscale Image', gray)
+cv2.imshow('Draw Contours', image_copy)
+cv2.imshow('Binary Image', binary)
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+Output:                                         ![alt text](image-100.png)
+
+### Contour Retreval Mode
+Suppose an image has multiple contour in it so how will we report which one is first and which one is second in row to report. 
+Retrieve external will extract only the contour of external item if there is contour inside of outercontoure it will ignore
+Retrieve List is used when we want all the contour but ignore hierarchy(indicates this data belongs to that image and so on)
+
+Retrive Tree its like ouput all the contours by establishing hierarchiercy relationship
+![alt text](image-101.png)
+
+In this code where ith hierarchical level indicates the index of next contour
+
+![alt text](image-102.png)
+
+![alt text](image-103.png)
+
+## Feature Matching Part One
+Unlike template matching which require same image say of dog's face but in real life its always not the same dog so have to extract some attributes, features of the dog using ideas from conrner,edge and contour detection. Using  distance calculation, finds all the matches in a secondaty image wihtout no loger requiremet to have exact copy of the tragated image.                         
+Exploring following 3 methods:                          
+    1.  Brute-Force Matching with ORB Descriptors           
+    2.  Brute-Force Matching with SIFT Descriptors and Ratio Test                                       
+    3.  FLANN based Matcher                     
+```Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def display(img, cmap='gray'):
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111)
+    ax.imshow(img, cmap='gray')
+```
+```Python
+reeses = cv2.imread('snapshotimagehandler_1932655075.jpeg', 0)
+display(reeses)
+```
+Output:                                             
+![alt text](image-104.png)
+
+```Python
+ressesfuff = cv2.imread('ressesspufff.jpeg', 0)
+display(ressesfuff)
+```                                             
+Output:                                         
+![alt text](image-105.png)                          
+
+```Python
+# creating detector object
+orb = cv2.ORB_create()
+
+# not masking so we use None in the second parameter
+kp1, des1 = orb.detectAndCompute(reeses, None)
+
+# creating detector object
+orb = cv2.ORB_create()
+
+# not masking so we use None in the second parameter
+kp2, des2 = orb.detectAndCompute(ressesfuff, None)  
+
+# creating matching object
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+matches = bf.match(des1, des2)
+
+single_match = matches[0]
+single_match.distance
+
+matches = sorted(matches, key=lambda x:x.distance)
+
+len(matches)
+#only matching 25 key features of the given feature out of 114 matches
+reeses_matches = cv2.drawMatches(reeses, kp1, ressesfuff, kp2, matches[:25], None, flags =2)
+
+display(reeses_matches)
+```
+
+Output:                                             
+![alt text](image-106.png)                          
+
+## Featire Matching Part two
+SIFT Descriptors stands for scale and variant feature transform, does well when image size of different scale. In the earlier image the reese's puffs cereal box size of tagated image and real image was different which will cause some confusion.  
+
+```Python
+# create object 
+sift = cv2.SIFT_create()
+
+kp1, ds1 = sift.detectAndCompute(reeses, None)
+kp2, ds2 = sift.detectAndCompute(ressesfuff, None)
+
+bf = cv2.BFMatcher()
+
+matches = bf.knnMatch(des1, des2, k=2)
+
+matches 
+```
+Output:                                 
+![alt text](image-107.png)
+
+```Python
+# apply ratio test for testing if two matches are relatively cloose to eath other
+good =[] # less distance means better matches and vice versa
+# if match1 distance is less than 75% of match 2 distance
+# then descriptor was a good match, lets keep it
+for match1, match2 in matches:
+    if match1.distance < 0.75 * match2.distance:
+        good.append([match1])
+
+len(good)
+
+len(matches)
+
+sift_matches = cv2.drawMatchesKnn(reeses, kp1, ressesfuff, kp2,good, None, flags=2)
+display(sift_matches)
+```
+```Python
+2                                                   
+500
+```
+![alt text](image-108.png)          
+
+### FLANN Based Matches
+```Python 
+sift = cv2.SIFT_create()
+
+kp1, ds1 = sift.detectAndCompute(reeses, None)
+kp2, ds2 = sift.detectAndCompute(ressesfuff, None)
+
+#Defining Fast Library Approximation Near Neighbour 
+# faster then bruforce method but finds only general feature matches
+
+FLANN_INDEX_KDTREE = 0
+index_params = dict(algorithm = FLANN_INDEX_KDTREE, tree = 5)
+search_params = dict(checks = 1)
+
+
+# Convert descriptors to float32 before matching
+if des1.dtype != 'float32':
+    des1 = des1.astype('float32')
+if des2.dtype != 'float32':
+    des2 = des2.astype('float32')
+
+# Now you can use FLANN matcher
+flann = cv2.FlannBasedMatcher(index_params, search_params)
+matches = flann.knnMatch(des1, des2, k=2)
+
+# ratio test
+good = []
+
+for match1, match2 in matches:
+    if match1.distance < 0.7 * match2.distance:
+        good.append([match1])
+
+flann_matches = cv2.drawMatchesKnn(reeses, kp1, ressesfuff, kp2, good, None, flags=0)
+display(flann_matches)
+
+```
+Output:                     
+![alt text](image-109.png)
+
+Addition additional features
+```Python
+matchesMask = [[0, 0] for i in range(len(matches))]
+
+for i, (match1, match2) in enumerate(matches):
+    if match1.distance < 0.7 * match2.distance:
+        matchesMask[i] = [1, 0]  # Label lines
+
+draw_params = dict(
+    matchColor=(0, 255, 0),
+    singlePointColor=(255, 0, 0),
+    matchesMask=matchesMask,
+    flags=0  # 'flag' parameter was renamed to 'flags'
+)
+
+# Assuming 'display' is a valid function for displaying images
+flann_matches = cv2.drawMatchesKnn(reeses, kp1, ressesfuff, kp2, matches, None, **draw_params)
+display(flann_matches)
+
+```
+Output:                                     
+![alt text](image-111.png)
+
+
+
+
