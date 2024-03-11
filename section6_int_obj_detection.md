@@ -15,6 +15,10 @@ This technique is widely used for object detection projects, like product qualit
 #### Analogy
 Its like specific artical or image from a newspaper page, say finding suduko from larger news paper page which involve scanning through entire newspaper page and compare each section with smaller image or specific artical/template. The goal is to find regions where the contenet of the newpaper page closely matches the desired template. 
 During template matching, a correlation map is created. It's like keeping track of how well the content of the newspaper page matches your template at different locations. High values in the correlation map indicate strong matches. Once the template matching process is complete, you can identify the location where the correlation is highest. This location corresponds to the position on the newspaper page where your template (specific article or image) is located.
+
+The goal is to find regions in the input image where the template closely matches. The function slides the template over the input image and computes a correlation map (result) at each position, indicating how well the template matches the corresponding region in the input image. The resulting correlation map (result) will have higher values at positions where the template is a close match, and lower values where there is less similarity. This map is then analyzed to find the location of the best match, and a rectangle is often drawn around that region to highlight the detected template in the original image.
+
+
 ```Python
 import cv2
 import numpy as np
@@ -96,9 +100,10 @@ for method in methods:
     # emplate matching is performed using the specified technique, comparing the input image (image) with the template image (head). The result is a correlation map stored in the variable result
     result = cv2.matchTemplate(image, head, technique)
 
-    # Tuple unpacking
+    # Tuple unpacking use for find highest similarity and least similarity (min_val) and finding the location
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
+# checking if technique is equal to either cv2.TM_SQDIFF or cv2.TM_SQDIFF_NORMED. if its true then set top_left where there is minimum matches and vice versa
     if technique in [cv2.TM_SQDIFF, cv2.TM_SQDIFF_NORMED]:
         top_left = min_loc
     else:
@@ -552,7 +557,20 @@ Unlike template matching which require same image say of dog's face but in real 
 Exploring following 3 methods:                          
     1.  Brute-Force Matching with ORB Descriptors           
     2.  Brute-Force Matching with SIFT Descriptors and Ratio Test                                       
-    3.  FLANN based Matcher                     
+    3.  FLANN based Matcher      
+
+#### Brute-Force Matching with ORB (Orinted FAST and Rotated BRIEF)
+Comparing features(numerical values) between first image and second image by finding difference between the images to discover similarity or dissimilarity.      
+
+For BF matcher, first we have to create the BFMatcher object using cv.BFMatcher(). It takes two optional params. First one is normType. It specifies the distance measurement to be used. By default, it is cv.NORM_L2. It is good for SIFT, SURF etc (cv.NORM_L1 is also there). For binary string based descriptors like ORB, BRIEF, BRISK etc, cv.NORM_HAMMING should be used, which used Hamming distance as measurement. If ORB is using WTA_K == 3 or 4, cv.NORM_HAMMING2 should be used.
+
+Second param is boolean variable, crossCheck which is false by default. If it is true, Matcher returns only those matches with value (i,j) such that i-th descriptor in set A has j-th descriptor in set B as the best match and vice-versa. That is, the two features in both sets should match each other. It provides consistent result, and is a good alternative to ratio test proposed by D.Lowe in SIFT paper.
+
+Once it is created, two important methods are BFMatcher.match() and BFMatcher.knnMatch(). First one returns the best match. Second method returns k best matches where k is specified by the user. It may be useful when we need to do additional work on that.
+
+Like we used cv.drawKeypoints() to draw keypoints, cv.drawMatches() helps us to draw the matches. It stacks two images horizontally and draw lines from first image to second image showing best matches. There is also cv.drawMatchesKnn which draws all the k best matches. If k=2, it will draw two match-lines for each keypoint. So we have to pass a mask if we want to selectively draw it.
+
+Here, we will see a simple example on how to match features between two images. In this case, I have a queryImage and a trainImage. We will try to find the queryImage in trainImage using feature matching.
 ```Python
 import cv2
 import numpy as np
@@ -578,7 +596,7 @@ Output:
 ![alt text](image-105.png)                          
 
 ```Python
-# creating detector object
+# creating detector object/ initating orb detector 
 orb = cv2.ORB_create()
 
 # not masking so we use None in the second parameter
@@ -610,7 +628,23 @@ Output:
 ![alt text](image-106.png)                          
 
 ## Featire Matching Part two
-SIFT Descriptors stands for scale and variant feature transform, does well when image size of different scale. In the earlier image the reese's puffs cereal box size of tagated image and real image was different which will cause some confusion.  
+SIFT(Scale Invariant Feature Transform) Descriptors stands for scale and variant feature transform, does well when image size of different scale. In the earlier image the reese's puffs cereal box size of tagated image and real image was different which will cause some confusion.  
+
+In this method suppose if we use template matching its quite tedious since we need to create multiple templates. Additionally, the image is obstracted with other image, also the training image is rotated in certain angle, so using template matching its difficult. Therefore, to detect features of querrying image from traning image we use SIFT Detectors where it will find the unique features, match them.
+
+Corner, edge and contour detection is not always interest point for some task we required more information, description on the onject under consideration.  Detecting blobs which is some local appearance which gives description of the image. Object can appear in many different size, depth and magnification depending on camera so have to deal with scaling
+
+The given image which has two setting where one is more clear than other, orintation are different and light intensity are different, as well the size are different. So its would be earier if we can reointate to match the image, or increase bightness of image and rescale to match the other image. Also, we should consider unwanted features like the background of the image. 
+![alt text](image-112.png)
+So the image content such as brightness, color, should have well degined feature or unique feature or signature feature, the position of the image is well defined, should not get hampared with image size and rotation and should not be affected by lights intensity changes. 
+![alt text](image-113.png)
+For the given image  intert point we have is the edges are show but if we go along the line we can again seeanother are of similar edges, which indictes the edges are not unique; corners are for simpler object.
+![alt text](image-114.png)
+From the given image we can see that blobs has different range of light intensity which are unique.
+
+To use blobs like features we need to have certain attribues: location of blobs which does not depend on the image features. Determine the size is rough scale area bounding the area of interest, not associated with edges or bounderis of the object, its rough scale. Orientation and formulate the description or signature that is independed of the size and orientaiton
+![alt text](image-115.png)
+
 
 ```Python
 # create object 
@@ -712,6 +746,72 @@ display(flann_matches)
 Output:                                     
 ![alt text](image-111.png)
 
+# Watershed Algorithm 
+Watershed is area where all water fall and snow melt are diverted down to streams, rivers and eventually to reservoirs, bays, and ocean.                    
+Any grayscale image can be viewed as tropographical surface where high intensity denotes peaks and hills while low intensity denotes valleys. 
+![alt text](image-116.png)
 
+For human eyes the coins placed to each other might look separated but in computer vision use some kind of filtering it will see all the coins are connected with eath other. 
+![alt text](image-117.png)
+
+Physically they are separate coins but some computer vision algorithm we can see they are block of same image with white background.
+![alt text](image-118.png)
+
+Segment the image with 8 for the coins and 1 for the background.
+
+```Python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def display(image, cmap = 'gray'):
+    fig = plt.figure(figsize = (12, 10))
+    ax = fig.add_subplot(111)
+    ax.imshow(image, cmap = 'gray')
+
+coins = cv2.imread('coins.jpg')
+display(coins)
+
+# apply median blue, not concerned about drawing inside but
+# concern with the circle of the coin only, convert to grayscale
+# apply binary threshold
+# find the contour. 
+sep_blur = cv2.medianBlur(coins,21)
+display(sep_blur)
+```
+Output:                             
+![alt text](image-122.png)      
+       ![alt text](image-123.png)
+
+```Python
+# converting to gray scale image
+gray_sep_coins = cv2.cvtColor(sep_blur, cv2.COLOR_BGR2GRAY)
+display(gray_sep_coins)
+```
+Output:                                     
+![alt text](image-124.png)
+
+```Python
+# apply binary threshold for separating foreground and background
+ret, sep_threshold = cv2.threshold(gray_sep_coins, 250, 255, cv2.THRESH_BINARY_INV)
+display(sep_threshold)
+```
+Output:                                         
+![alt text](image-126.png)
+
+```Python
+# Assuming sep_threshold is your binary image
+contours, hierarchy = cv2.findContours(sep_threshold.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+for i in range(len(contours)):
+    if hierarchy[0][i][2] == -1:  # external contour
+        cv2.drawContours(coins, contours, i, (255, 0, 0), 10)
+
+# Display the image with contours
+display(coins)
+
+```
+Output:                             
+![alt text](image-127.png)
 
 
